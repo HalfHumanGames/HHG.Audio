@@ -1,0 +1,22 @@
+{
+  "name": "com.halfhumangames.audio",
+  "version": "1.0.0",
+  "displayName": "HHG - Audio",
+  "description": "Simple audio library for Unity",
+  "unity": "2020.3",
+  "unityRelease": "6f1",
+  "documentationUrl": "https://github.com/HalfHumanGames/HHG.Audio/blob/main/README.md",
+  "changelogUrl": "https://github.com/HalfHumanGames/HHG.Audio/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/HalfHumanGames/HHG.Audio/blob/main/LICENSE",
+  "keywords": [
+    "Audio",
+    "Music",
+    "Sounds",
+    "Library"
+  ],
+  "author": {
+    "name": "Half Human Games",
+    "email": "contact@halfhumangames.com",
+    "url": "https://github.com/HalfHumanGames"
+  }
+}
