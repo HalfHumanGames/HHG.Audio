@@ -3,6 +3,8 @@ using HHG.Common.Runtime;
 using UnityEngine.Pool;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+
 
 
 
@@ -60,12 +62,27 @@ namespace HHG.Audio.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void Initialize()
         {
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
             Application.quitting -= OnApplicationQuit;
             Application.quitting += OnApplicationQuit;
 #if UNITY_EDITOR
             EditorApplication.quitting -= OnApplicationQuit;
             EditorApplication.quitting += OnApplicationQuit;
 #endif
+        }
+
+        private static void OnSceneUnloaded(Scene scene)
+        {
+            foreach (AudioSource activeSource in activeSources)
+            {
+                pool.Release(activeSource);
+            }
+
+            activeSources.Clear();
+            voiceCounts.Clear();
+            timestamps.Clear();
+            coroutine = null;
         }
 
         private static IEnumerator CheckIfAudioSourceIsDonePlaying()
