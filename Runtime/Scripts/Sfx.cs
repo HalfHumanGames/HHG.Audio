@@ -26,12 +26,17 @@ namespace HHG.Audio.Runtime
 
         [SerializeField] private AssetReferenceT<AudioClip> _clip;
         //[SerializeField] private bool loop;
-        [SerializeField, Row] private MinMaxFloat volumeRange = 1;
-        [SerializeField, Row] private MinMaxFloat pitchRange = 1;
-        [SerializeField, Row] private MinMaxFloat delayRange = 0;
+        [SerializeField, Row] private MinMaxFloat volumeRange = 1f;
+        [SerializeField, Row] private MinMaxFloat pitchRange = 1f;
+        [SerializeField, Row] private MinMaxFloat delayRange = 0f;
         [SerializeField] private int weight = 1;
 
         private AudioClip clip;
+
+        public Sfx(string guid)
+        {
+            _clip = new AssetReferenceT<AudioClip>(guid);
+        }
 
         public void Load()
         {

@@ -1,0 +1,20 @@
+{
+    "name": "HHG.Audio.Editor",
+    "rootNamespace": "HHG.Audio.Editor",
+    "references": [
+        "GUID:8413476b1284ef74fa7300662f10cca9",
+        "GUID:58e50624d553f054bb18bfdd8f73e24c",
+        "GUID:d6a3298363838254482a014c0309f3b0"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

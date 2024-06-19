@@ -12,6 +12,7 @@ namespace HHG.Audio.Runtime
     {
         public bool IsLoaded => LoadedCount == sfxs.Count;
         public int LoadedCount => sfxs.Count(sfx => sfx.IsLoaded);
+        public List<Sfx> Sfxs => sfxs;
 
         public event Action<SfxGroupAsset> Loaded;
 
