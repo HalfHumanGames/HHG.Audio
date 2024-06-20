@@ -1,4 +1,4 @@
-using HHG.Audio.Common;
+using HHG.Audio.Runtime;
 using HHG.Common.Runtime;
 using System;
 using System.Collections.Generic;
@@ -51,7 +51,7 @@ namespace HHG.Audio.Runtime
 
         public bool CanPlay(int voiceCount, float timestamp)
         {
-            return voiceCount < maxVoices && Time.time - timestamp > cooldown && RandomUtil.Chance(playChance);
+            return voiceCount < maxVoices && Time.unscaledTime - timestamp > cooldown && RandomUtil.Chance(playChance);
         }
 
         public void Play(AudioSource source, float spacialBlend, Vector3 position = default)

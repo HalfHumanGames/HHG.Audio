@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 using System;
-using HHG.Audio.Common;
+using HHG.Audio.Runtime;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

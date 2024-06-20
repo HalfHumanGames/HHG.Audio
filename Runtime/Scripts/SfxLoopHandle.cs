@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace HHG.Audio.Common
+namespace HHG.Audio.Runtime
 {
     public class SfxLoopHandle
     {
