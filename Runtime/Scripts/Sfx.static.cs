@@ -4,14 +4,12 @@ using UnityEngine.Pool;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
-
-
-
-
-
+using System;
+using HHG.Audio.Common;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+using Object = UnityEngine.Object;
 
 namespace HHG.Audio.Runtime
 {
@@ -54,6 +52,7 @@ namespace HHG.Audio.Runtime
 
         private static List<AudioSource> activeSources = new List<AudioSource>();
         private static Dictionary<AudioSource, SfxGroupAsset> sourceToGroupMap = new Dictionary<AudioSource, SfxGroupAsset>();
+        private static Dictionary<SfxGroupAsset, List<SfxLoopHandle>> groupToHandlesMap = new Dictionary<SfxGroupAsset, List<SfxLoopHandle>>();
         private static Dictionary<SfxGroupAsset, int> voiceCounts = new Dictionary<SfxGroupAsset, int>();
         private static Dictionary<SfxGroupAsset, float> timestamps = new Dictionary<SfxGroupAsset, float>();
         private static Coroutine coroutine;
@@ -102,7 +101,7 @@ namespace HHG.Audio.Runtime
                         i--;
                     }
                 }
-                yield return new WaitForEndOfFrame();
+                yield return null;
             }
         }
 
@@ -136,12 +135,18 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName)
         {
-            PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D);
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D);
+            }
         }
 
         public static void Play(string groupName, Vector3 position)
         {
-            PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position);
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position);
+            }
         }
 
         public static void Play(SfxGroupAsset group)
@@ -149,12 +154,51 @@ namespace HHG.Audio.Runtime
             PlayInternal(group, Space._2D);
         }
 
-        private static void PlayInternal(SfxGroupAsset group, Vector3 position)
+        public static void Play(SfxGroupAsset group, Vector3 position)
         {
             PlayInternal(group, Space._3D, position);
         }
 
-        private static void PlayInternal(SfxGroupAsset group, Space space, Vector3 position = default)
+        public static void PlayLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D, default, true, fadeDuration, fadeEase);
+            }
+        }
+
+        public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position, true, fadeDuration, fadeEase);
+            }
+        }
+
+        public static void PlayLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
+        }
+
+        public static void PlayLooped(SfxGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
+        }
+
+        public static void StopLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                StopInternal(Database.Get<SfxGroupAsset>(groupName), fadeDuration, fadeEase);
+            }
+        }
+
+        public static void StopLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            StopInternal(group, fadeDuration, fadeEase);
+        }
+
+        private static void PlayInternal(SfxGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (group == null)
             {
@@ -163,20 +207,20 @@ namespace HHG.Audio.Runtime
 
             if (group.IsLoaded)
             {
-                PlayInternalNow(group, space, position);
+                PlayInternalNow(group, space, position, loop, fadeDuration, fadeEase);
             }
             else
             {
                 group.Loaded += group =>
                 {
-                    PlayInternalNow(group, space, position);
+                    PlayInternalNow(group, space, position, loop, fadeDuration, fadeEase);
                 };
 
                 group.Load();
             }
         }
 
-        private static void PlayInternalNow(SfxGroupAsset group, Space space, Vector3 position = default)
+        private static void PlayInternalNow(SfxGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, Func<float, float> fadeEase)
         {
             if (coroutine == null)
             {
@@ -200,7 +244,32 @@ namespace HHG.Audio.Runtime
                 sourceToGroupMap[source] = group;
                 voiceCounts[group]++;
                 timestamps[group] = Time.time;
-                group.Play(source, (float)space, position);
+
+                if (loop)
+                {
+                    SfxLoopHandle loopHandle = group.PlayLooped(source, (float)space, position, fadeDuration, fadeEase);
+
+                    if (!groupToHandlesMap.ContainsKey(group))
+                    {
+                        groupToHandlesMap.Add(group, new List<SfxLoopHandle>());
+                    }
+
+                    groupToHandlesMap[group].Add(loopHandle);
+                }
+                else
+                {
+                    group.Play(source, (float)space, position);
+                }
+            }
+        }
+
+        private static void StopInternal(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            if (groupToHandlesMap.TryGetValue(group, out List<SfxLoopHandle> handles) && handles.Count > 0)
+            {
+                int last = handles.Count - 1;
+                group.StopLooped(handles[last], fadeDuration, fadeEase);
+                handles.RemoveAt(last);
             }
         }
     }

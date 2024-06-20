@@ -1,3 +1,4 @@
+using HHG.Audio.Common;
 using HHG.Common.Runtime;
 using System;
 using System.Collections.Generic;
@@ -35,7 +36,7 @@ namespace HHG.Audio.Runtime
                     sfx.Loaded += OnLoaded;
                     sfx.Load();
                 }
-            } 
+            }
         }
 
         private void OnLoaded(Sfx sfx)
@@ -55,18 +56,77 @@ namespace HHG.Audio.Runtime
 
         public void Play(AudioSource source, float spacialBlend, Vector3 position = default)
         {
+            SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float delay);
+            source.loop = false;
+            source.volume = finalVolume;
+            if (delay >= 0f)
+            {
+                source.PlayDelayed(delay);
+            }
+            else
+            {
+                source.Play();
+            }
+        }
+
+        public SfxLoopHandle PlayLooped(AudioSource source, float spacialBlend, Vector3 position = default, float duration = 0f, Func<float, float> ease = null)
+        {
+            SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float delay);
+            source.loop = true;
+            if (duration <= 0f)
+            {
+                source.volume = finalVolume;
+                if (delay >= 0)
+                {
+                    source.PlayDelayed(delay);
+                }
+                else
+                {
+                    source.Play();
+                }
+                return new SfxLoopHandle(source);
+            }
+            else
+            {
+                source.volume = 0f;
+                Coroutine coroutine = source.FadeToDelayed(delay, finalVolume, duration, ease);
+                return new SfxLoopHandle(source, coroutine);
+            }
+        }
+
+        public void StopLooped(SfxLoopHandle handle, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        {
+            if (handle.Coroutine != null)
+            {
+                CoroutineUtil.StopCoroutine(handle.Coroutine);
+            }
+            if (handle.Source != null)
+            {
+
+                if (fadeDuration <= 0f)
+                {
+                    handle.Source.Stop();
+                }
+                else
+                {
+                    handle.Source.FadeTo(0f, fadeDuration, fadeEase);
+                }
+            }
+        }
+
+        private void SetupAudioSource(AudioSource source, float spacialBlend, Vector3 position, out float finalVolume, out float delay)
+        {
             Sfx sfx = sfxs.SelectByWeight(s => s.Weight);
             source.transform.position = position;
             source.priority = priority;
             source.outputAudioMixerGroup = mixerGroup;
-            source.volume = volume * sfx.Volume;
             source.pitch = pitch * sfx.Pitch;
             source.spatialBlend = spacialBlend;
             source.minDistance = distance.Min;
             source.maxDistance = distance.Max;
-            source.loop = false; //sfx.Loop;
             source.clip = sfx.Clip;
-            source.PlayDelayed(sfx.Delay);
+            finalVolume = volume * sfx.Volume;
+            delay = sfx.Delay;
         }
     }
 }

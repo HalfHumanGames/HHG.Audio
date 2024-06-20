@@ -16,7 +16,6 @@ namespace HHG.Audio.Runtime
     {
         public bool IsLoaded => clip != null;
         public AudioClip Clip => clip;
-        //public bool Loop => loop;
         public float Volume => volumeRange.NextRand;
         public float Pitch => pitchRange.NextRand;
         public float Delay => delayRange.NextRand;
@@ -25,7 +24,6 @@ namespace HHG.Audio.Runtime
         public event Action<Sfx> Loaded;
 
         [SerializeField] private AssetReferenceT<AudioClip> _clip;
-        //[SerializeField] private bool loop;
         [SerializeField, Row] private MinMaxFloat volumeRange = 1f;
         [SerializeField, Row] private MinMaxFloat pitchRange = 1f;
         [SerializeField, Row] private MinMaxFloat delayRange = 0f;
