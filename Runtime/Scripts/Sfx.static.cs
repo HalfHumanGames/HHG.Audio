@@ -101,7 +101,7 @@ namespace HHG.Audio.Runtime
                         i--;
                     }
                 }
-                yield return null;
+                yield return new WaitForEndOfFrame();
             }
         }
 
