@@ -40,6 +40,13 @@ namespace HHG.Audio.Runtime
                 return;
             }
 
+            if (!playlist.IsLoaded)
+            {
+                playlist.Loaded += OnPlaylistLoaded;
+                playlist.Load();
+                return;
+            }
+
             if (playlist.Tracks.Count == 0)
             {
                 return;
@@ -56,6 +63,12 @@ namespace HHG.Audio.Runtime
             current = 0;
 
             PlayNextTrack();
+        }
+
+        private void OnPlaylistLoaded(PlaylistAsset playlist)
+        {
+            playlist.Loaded -= OnPlaylistLoaded;
+            PlayPlaylist();
         }
 
         [ContextMenu("Play Next Track")]
