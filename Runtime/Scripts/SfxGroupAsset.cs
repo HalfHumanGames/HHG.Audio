@@ -16,14 +16,16 @@ namespace HHG.Audio.Runtime
 
         public event Action<SfxGroupAsset> Loaded;
 
-        [SerializeField] private float playChance = 1;
+        [SerializeField] private float playChance = 1f;
         [SerializeField] private int priority;
         [SerializeField] private AudioMixerGroup mixerGroup;
-        [SerializeField] private float volume = 1;
-        [SerializeField] private float pitch = 1;
-        [SerializeField] private float cooldown;
+        [SerializeField] private float volume = 1f;
+        [SerializeField] private float pitch = 1f;
+        [SerializeField] private float cooldown = .2f;
         [SerializeField] private int maxVoices = 5;
-        [SerializeField, Row] private MinMaxFloat distance = new MinMaxFloat(1, 500);
+        [SerializeField, Row] private MinMaxFloat distance = new MinMaxFloat(1f, 500f);
+        [SerializeField] private AudioRolloffMode rolloffMode;
+        [SerializeField] private AnimationCurve customRolloff;
         [SerializeField] private List<Sfx> sfxs = new List<Sfx>();
 
         public void Load()
@@ -116,6 +118,7 @@ namespace HHG.Audio.Runtime
         private void SetupAudioSource(AudioSource source, float spacialBlend, Vector3 position, out float finalVolume, out float delay)
         {
             Sfx sfx = sfxs.SelectByWeight(s => s.Weight);
+            source.clip = sfx.Clip;
             source.transform.position = position;
             source.priority = priority;
             source.outputAudioMixerGroup = mixerGroup;
@@ -123,7 +126,8 @@ namespace HHG.Audio.Runtime
             source.spatialBlend = spacialBlend;
             source.minDistance = distance.Min;
             source.maxDistance = distance.Max;
-            source.clip = sfx.Clip;
+            source.rolloffMode = rolloffMode;
+            source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
             finalVolume = volume * sfx.Volume;
             delay = sfx.Delay;
         }
