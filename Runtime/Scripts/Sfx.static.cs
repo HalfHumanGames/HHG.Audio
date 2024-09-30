@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 using System;
-using HHG.Audio.Runtime;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -43,7 +42,7 @@ namespace HHG.Audio.Runtime
                 if (_pool == null && !isQuitting)
                 {
                     int voices = AudioSettings.GetConfiguration().numVirtualVoices;
-                    _pool = new LinkedPool<AudioSource>(CreateAudioSource, GetAudioSource, ReleaseAudioSource, DestroyAudioSource, false, voices);
+                    _pool = new LinkedPool<AudioSource>(CreateAudioSource, OnGetAudioSource, OnReleaseAudioSource, OnDestroyAudioSource, false, voices);
                 }
 
                 return _pool;
@@ -113,17 +112,17 @@ namespace HHG.Audio.Runtime
             return go.AddComponent<AudioSource>();
         }
 
-        private static void GetAudioSource(AudioSource source)
+        private static void OnGetAudioSource(AudioSource source)
         {
             source.gameObject.SetActive(true);
         }
 
-        private static void ReleaseAudioSource(AudioSource source)
+        private static void OnReleaseAudioSource(AudioSource source)
         {
             source.gameObject.SetActive(false);
         }
 
-        private static void DestroyAudioSource(AudioSource source)
+        private static void OnDestroyAudioSource(AudioSource source)
         {
             Object.Destroy(source.gameObject);
         }
@@ -135,7 +134,7 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName)
         {
-            if (!string.IsNullOrEmpty(groupName))
+            if (!isQuitting && !string.IsNullOrEmpty(groupName))
             {
                 PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D);
             }
@@ -143,7 +142,7 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName, Vector3 position)
         {
-            if (!string.IsNullOrEmpty(groupName))
+            if (!isQuitting && !string.IsNullOrEmpty(groupName))
             {
                 PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position);
             }
@@ -151,17 +150,23 @@ namespace HHG.Audio.Runtime
 
         public static void Play(SfxGroupAsset group)
         {
-            PlayInternal(group, Space._2D);
+            if (!isQuitting)
+            {
+                PlayInternal(group, Space._2D);
+            }
         }
 
         public static void Play(SfxGroupAsset group, Vector3 position)
         {
-            PlayInternal(group, Space._3D, position);
+            if (!isQuitting)
+            {
+                PlayInternal(group, Space._3D, position);
+            }
         }
 
         public static void PlayLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!string.IsNullOrEmpty(groupName))
+            if (!isQuitting && !string.IsNullOrEmpty(groupName))
             {
                 PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D, default, true, fadeDuration, fadeEase);
             }
@@ -169,7 +174,7 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!string.IsNullOrEmpty(groupName))
+            if (!isQuitting && !string.IsNullOrEmpty(groupName))
             {
                 PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position, true, fadeDuration, fadeEase);
             }
@@ -177,17 +182,23 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
+            if (!isQuitting)
+            {
+                PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
+            }
         }
 
         public static void PlayLooped(SfxGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
+            if (!isQuitting)
+            {
+                PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
+            }
         }
 
         public static void StopLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!string.IsNullOrEmpty(groupName))
+            if (!isQuitting && !string.IsNullOrEmpty(groupName))
             {
                 StopInternal(Database.Get<SfxGroupAsset>(groupName), fadeDuration, fadeEase);
             }
@@ -195,16 +206,14 @@ namespace HHG.Audio.Runtime
 
         public static void StopLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            StopInternal(group, fadeDuration, fadeEase);
+            if (!isQuitting && group != null)
+            {
+                StopInternal(group, fadeDuration, fadeEase);
+            }
         }
 
         private static void PlayInternal(SfxGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (group == null)
-            {
-                return;
-            }
-
             if (group.IsLoaded)
             {
                 PlayInternalNow(group, space, position, loop, fadeDuration, fadeEase);
