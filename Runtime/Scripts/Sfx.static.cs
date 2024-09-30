@@ -134,17 +134,17 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName)
         {
-            if (!isQuitting && !string.IsNullOrEmpty(groupName))
+            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
             {
-                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D);
+                PlayInternal(group, Space._2D);
             }
         }
 
         public static void Play(string groupName, Vector3 position)
         {
-            if (!isQuitting && !string.IsNullOrEmpty(groupName))
+            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
             {
-                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position);
+                PlayInternal(group, Space._3D, position);
             }
         }
 
@@ -166,17 +166,17 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && !string.IsNullOrEmpty(groupName))
+            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
             {
-                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._2D, default, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
             }
         }
 
         public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && !string.IsNullOrEmpty(groupName))
+            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
             {
-                PlayInternal(Database.Get<SfxGroupAsset>(groupName), Space._3D, position, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
             }
         }
 
@@ -198,9 +198,9 @@ namespace HHG.Audio.Runtime
 
         public static void StopLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && !string.IsNullOrEmpty(groupName))
+            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
             {
-                StopInternal(Database.Get<SfxGroupAsset>(groupName), fadeDuration, fadeEase);
+                StopInternal(group, fadeDuration, fadeEase);
             }
         }
 
