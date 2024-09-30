@@ -150,7 +150,7 @@ namespace HHG.Audio.Runtime
 
         public static void Play(SfxGroupAsset group)
         {
-            if (!isQuitting)
+            if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._2D);
             }
@@ -158,7 +158,7 @@ namespace HHG.Audio.Runtime
 
         public static void Play(SfxGroupAsset group, Vector3 position)
         {
-            if (!isQuitting)
+            if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._3D, position);
             }
@@ -182,7 +182,7 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting)
+            if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
             }
@@ -190,7 +190,7 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(SfxGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting)
+            if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
             }
