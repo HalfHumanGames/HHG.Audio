@@ -12,24 +12,29 @@ namespace HHG.Audio.Runtime
         private List<AudioClip> tracks = new List<AudioClip>();
         private AudioSource source;
         private int current = 0;
+        private bool isLoading;
 
         private void Start()
         {
             source = GetComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.loop = false;
+            source.priority = 0;
+            source.spatialBlend = 0f;
             PlayPlaylist();
         }
 
         private void Update()
         {
-            if (!source.isPlaying)
+            if (!isLoading && !source.isPlaying)
             {
                 PlayNextTrack();
             }
         }
 
-        private void PlayPlaylist(PlaylistAsset playlist)
+        private void PlayPlaylist(PlaylistAsset nextPlaylist)
         {
-            this.playlist = playlist;
+            playlist = nextPlaylist;
             PlayPlaylist();
         }
 
@@ -42,6 +47,7 @@ namespace HHG.Audio.Runtime
 
             if (!playlist.IsLoaded)
             {
+                isLoading = true;
                 playlist.Loaded += OnPlaylistLoaded;
                 playlist.Load();
                 return;
@@ -67,6 +73,7 @@ namespace HHG.Audio.Runtime
 
         private void OnPlaylistLoaded(PlaylistAsset playlist)
         {
+            isLoading = false;
             playlist.Loaded -= OnPlaylistLoaded;
             PlayPlaylist();
         }

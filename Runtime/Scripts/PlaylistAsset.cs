@@ -1,6 +1,7 @@
 using HHG.Common.Runtime;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -11,7 +12,8 @@ namespace HHG.Audio.Runtime
     [CreateAssetMenu(fileName = "Playlist", menuName = "HHG/Audio/Playlist")]
     public class PlaylistAsset : ScriptableObject
     {
-        public bool IsLoaded => tracks.Count == _tracks.Count;
+        // Load resizes tracks to _tracks.Count, so count non-null clips
+        public bool IsLoaded => tracks.Count(t => t != null) == _tracks.Count;
         public bool PlayAll => playAll;
         public bool Shuffle => shuffle;
         public bool Loop => loop;
@@ -32,8 +34,12 @@ namespace HHG.Audio.Runtime
         {
             if (!IsLoaded)
             {
-                foreach (AssetReferenceT<AudioClip> reference in _tracks)
+                tracks.Resize(_tracks.Count);
+
+                for (int i = 0; i < _tracks.Count; i++)
                 {
+                    int index = i; // Can't use i since it changes
+                    AssetReferenceT<AudioClip> reference = _tracks[i];
                     AsyncOperationHandle<AudioClip> handle = Addressables.LoadAssetAsync<AudioClip>(reference);
 
                     handle.Completed += (operation) =>
@@ -42,7 +48,9 @@ namespace HHG.Audio.Runtime
                         {
                             AudioClip track = handle.Result;
 
-                            tracks.Add(track);
+                            // Add by index to make sure 
+                            // tracks get added in order
+                            tracks[index] = track;
 
                             if (IsLoaded)
                             {
