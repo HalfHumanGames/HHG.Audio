@@ -252,7 +252,7 @@ namespace HHG.Audio.Runtime
                 activeSources.Add(source);
                 sourceToGroupMap[source] = group;
                 voiceCounts[group]++;
-                timestamps[group] = Time.time;
+                timestamps[group] = Time.unscaledTime;
 
                 if (loop)
                 {
