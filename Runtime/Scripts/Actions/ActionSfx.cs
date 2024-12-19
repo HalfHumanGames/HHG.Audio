@@ -1,8 +1,10 @@
 using HHG.Common.Runtime;
+using System;
 using UnityEngine;
 
 namespace HHG.Audio.Runtime
 {
+    [Serializable]
     public class ActionSfx : IAction
     {
         [SerializeField, Dropdown] private SfxGroupAsset sfx;
