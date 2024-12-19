@@ -13,12 +13,13 @@ namespace HHG.Audio.Runtime
     public class PlaylistAsset : ScriptableObject
     {
         // Load resizes tracks to _tracks.Count, so count non-null clips
-        public bool IsLoaded => tracks.Count(t => t != null) == _tracks.Count;
+        public bool IsLoaded => _tracks.Count > 0 && tracks.Count(t => t != null) == _tracks.Count;
         public bool PlayAll => playAll;
         public bool Shuffle => shuffle;
         public bool Loop => loop;
         public PlaylistAsset Chain => chain;
         public IReadOnlyList<AudioClip> Tracks => tracks;
+        public IReadOnlyList<AssetReferenceT<AudioClip>> TrackReferences => _tracks;
 
         public event Action<PlaylistAsset> Loaded;
 
@@ -27,11 +28,21 @@ namespace HHG.Audio.Runtime
         [SerializeField] private bool loop;
         [SerializeField] private PlaylistAsset chain;
         [SerializeField, FormerlySerializedAs("tracks")] private List<AssetReferenceT<AudioClip>> _tracks = new List<AssetReferenceT<AudioClip>>();
+        [SerializeReference, SubclassSelector] private ITracksProvider tracksProvider;
 
         private List<AudioClip> tracks = new List<AudioClip>();
 
         public void Load()
         {
+            // This has to be done before the IsLoaded check since
+            // _tracks may contain values since the list is serialized,
+            // in which case IsLoaded would return true and not
+            // repopulate (and hence would never change values)
+            if (tracksProvider != null)
+            {
+                tracksProvider.PopulateTracks(_tracks, this);
+            }
+
             if (!IsLoaded)
             {
                 tracks.Resize(_tracks.Count);
