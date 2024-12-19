@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
 namespace HHG.Audio.Runtime
@@ -32,19 +33,42 @@ namespace HHG.Audio.Runtime
 
         private List<AudioClip> tracks = new List<AudioClip>();
 
-        public void Load()
+        private void OnEnable()
         {
-            // This has to be done before the IsLoaded check since
-            // _tracks may contain values since the list is serialized,
-            // in which case IsLoaded would return true and not
-            // repopulate (and hence would never change values)
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            Reset();
+        }
+
+        private void OnDisable()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
+        {
+            Reset();
+        }
+
+        private void Reset()
+        {
+            // Only clear tracks if using a tracks provider
             if (tracksProvider != null)
             {
-                tracksProvider.PopulateTracks(_tracks, this);
+                tracks.Clear();
             }
+        }
 
+        public void Load()
+        {
             if (!IsLoaded)
             {
+
+                if (tracksProvider != null)
+                {
+                    tracksProvider.PopulateTracks(_tracks, this);
+                }
+
                 tracks.Resize(_tracks.Count);
 
                 for (int i = 0; i < _tracks.Count; i++)

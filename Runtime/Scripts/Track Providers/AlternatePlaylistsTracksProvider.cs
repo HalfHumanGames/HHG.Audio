@@ -20,7 +20,7 @@ namespace HHG.Audio.Runtime
                 return;
             }
 
-            int trackCount = playlists[0].Tracks.Count;
+            int trackCount = playlists[0].TrackReferences.Count;
 
             if (trackCount == 0)
             {
@@ -28,7 +28,7 @@ namespace HHG.Audio.Runtime
                 return;
             }
 
-            if (playlists.Any(p => p.Tracks.Count != trackCount))
+            if (playlists.Any(p => p.TrackReferences.Count != trackCount))
             {
                 Debug.LogError("All playlists must have the same number of tracks!", playlist);
                 return;
