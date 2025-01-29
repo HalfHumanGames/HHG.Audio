@@ -81,6 +81,12 @@ namespace HHG.Audio.Runtime
         [ContextMenu("Play Next Track")]
         private void PlayNextTrack()
         {
+            if (playlist == null)
+            {
+                Debug.LogError("'playlist' cannot be null.", this);
+                return;
+            }
+
             if (current < tracks.Count)
             {
                 source.clip = tracks[current++];

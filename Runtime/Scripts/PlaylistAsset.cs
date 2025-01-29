@@ -94,7 +94,7 @@ namespace HHG.Audio.Runtime
                         }
                         else if (handle.Status == AsyncOperationStatus.Failed)
                         {
-                            DebugUtil.LogException(handle.OperationException.Message + "\n" + handle.OperationException.StackTrace);
+                            Debug.LogError($"{handle.OperationException.Message}\n{handle.OperationException.StackTrace}", this);
                         }
                     };
                 }
