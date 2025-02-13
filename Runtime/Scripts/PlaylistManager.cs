@@ -42,6 +42,7 @@ namespace HHG.Audio.Runtime
         {
             if (playlist == null)
             {
+                Debug.LogError("playlist is null.", this);
                 return;
             }
 
@@ -53,8 +54,20 @@ namespace HHG.Audio.Runtime
                 return;
             }
 
+            if (playlist.Tracks == null)
+            {
+                Debug.LogError("playlist.Tracks is null.", this);
+                return;
+            }
+
             if (playlist.Tracks.Count == 0)
             {
+                return;
+            }
+
+            if (tracks == null)
+            {
+                Debug.LogError("tracks is null.", this);
                 return;
             }
 
@@ -83,12 +96,24 @@ namespace HHG.Audio.Runtime
         {
             if (playlist == null)
             {
-                Debug.LogError("'playlist' cannot be null.", this);
+                Debug.LogError("playlist is null.", this);
+                return;
+            }
+
+            if (tracks == null)
+            {
+                Debug.LogError("tracks is null.", this);
                 return;
             }
 
             if (current < tracks.Count)
             {
+                if (source == null)
+                {
+                    Debug.LogError("source is null.", this);
+                    return;
+                }
+
                 source.clip = tracks[current++];
                 source.Play();
 
