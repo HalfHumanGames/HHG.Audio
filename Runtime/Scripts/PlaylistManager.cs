@@ -1,4 +1,5 @@
 using HHG.Common.Runtime;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,20 +8,54 @@ namespace HHG.Audio.Runtime
     [RequireComponent(typeof(AudioSource))]
     public class PlaylistManager : MonoBehaviour
     {
+        [System.Serializable]
+        private struct Priority
+        {
+            public int Start;
+            public int End;
+        }
+
+        private static PlaylistManager current;
+
+        [SerializeField] private float fadeDuration = 1f;
+        [SerializeField, Row] private Priority priority;
         [SerializeField] private PlaylistAsset playlist;
 
         private List<AudioClip> tracks = new List<AudioClip>();
         private AudioSource source;
-        private int current = 0;
+        private int currentTrackIndex = 0;
         private bool isLoading;
+        private bool shouldFadeIn;
 
-        private void Start()
+        private void Awake()
         {
             source = GetComponent<AudioSource>();
             source.playOnAwake = false;
             source.loop = false;
             source.priority = 0;
             source.spatialBlend = 0f;
+
+            if (current)
+            {
+                if (current.priority.End < priority.Start && current.playlist != playlist) 
+                {
+                    shouldFadeIn = true;
+                    current.FadeOutThenDestroySelf();
+                }
+                else
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+            }
+
+            current = this;
+            transform.SetParent(null);
+            DontDestroyOnLoad(gameObject);
+        }
+
+        private void Start()
+        {
             PlayPlaylist();
         }
 
@@ -79,7 +114,7 @@ namespace HHG.Audio.Runtime
                 tracks.Shuffle();
             }
 
-            current = 0;
+            currentTrackIndex = 0;
 
             PlayNextTrack();
         }
@@ -106,7 +141,7 @@ namespace HHG.Audio.Runtime
                 return;
             }
 
-            if (current < tracks.Count)
+            if (currentTrackIndex < tracks.Count)
             {
                 if (source == null)
                 {
@@ -114,12 +149,22 @@ namespace HHG.Audio.Runtime
                     return;
                 }
 
-                source.clip = tracks[current++];
-                source.Play();
+                source.clip = tracks[currentTrackIndex++];
 
+                if (shouldFadeIn)
+                {
+                    float volume = source.volume;
+                    source.volume = 0f;
+                    source.FadeTo(volume, fadeDuration);
+                }
+                else
+                {
+                    source.Play();
+                }
+               
                 if (!playlist.PlayAll)
                 {
-                    current = tracks.Count;
+                    currentTrackIndex = tracks.Count;
                 }
             }
             else if (playlist.Loop)
@@ -130,6 +175,17 @@ namespace HHG.Audio.Runtime
             {
                 PlayPlaylist(playlist.Chain);
             }
+        }
+
+        private void FadeOutThenDestroySelf()
+        {
+            StartCoroutine(FadeOutThenDestroySelfAsync());
+        }
+
+        private IEnumerator FadeOutThenDestroySelfAsync()
+        {
+            yield return source.FadeTo(0f, fadeDuration);
+            Destroy(gameObject);
         }
     }
 }
