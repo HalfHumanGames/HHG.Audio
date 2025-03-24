@@ -7,14 +7,14 @@ namespace HHG.Audio.Editor
 {
     public class AudioClipMenuItem
     {
-        [MenuItem("CONTEXT/AudioClip/Create Sfx Groups")]
-        private static void CreateSfxGroups(MenuCommand cmd)
+        [MenuItem("CONTEXT/AudioClip/Create Sound Groups")]
+        private static void CreateSoundGroups(MenuCommand cmd)
         {
             if (cmd.context != Selection.activeObject)
             {
                 return;
             }
-            string folder = EditorUtility.OpenFolderPanel("Select Folder to Save Sfx Groups", "Assets", "");
+            string folder = EditorUtility.OpenFolderPanel("Select Folder to Save Sound Groups", "Assets", "");
 
             if (string.IsNullOrEmpty(folder))
             {
@@ -29,16 +29,16 @@ namespace HHG.Audio.Editor
             foreach (AudioClip clip in Selection.objects.OfType<AudioClip>())
             {
                 string guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                SfxGroupAsset sfxGroup = ScriptableObject.CreateInstance<SfxGroupAsset>();
-                sfxGroup.Sfxs.Add(new Sfx(guid));
+                SoundGroupAsset soundGroup = ScriptableObject.CreateInstance<SoundGroupAsset>();
+                soundGroup.Sounds.Add(new Sound(guid));
 
                 string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{clip.name}.asset");
-                AssetDatabase.CreateAsset(sfxGroup, path);
+                AssetDatabase.CreateAsset(soundGroup, path);
                 AssetDatabase.SaveAssets();
             }
 
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("Sfx Groups Created", "Successfully created Sfx Groups for the selected Audio Clips.", "OK");
+            EditorUtility.DisplayDialog("Sfx Groups Created", "Successfully created Sound Groups for the selected Audio Clips.", "OK");
         }
     }
 }

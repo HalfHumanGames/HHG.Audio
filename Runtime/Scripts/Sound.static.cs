@@ -12,7 +12,7 @@ using Object = UnityEngine.Object;
 
 namespace HHG.Audio.Runtime
 {
-    public partial class Sfx
+    public partial class Sound
     {
         public enum Space
         {
@@ -20,17 +20,17 @@ namespace HHG.Audio.Runtime
             _3D
         }
 
-        private static GameObject _sfx;
-        private static GameObject sfx
+        private static GameObject _sound;
+        private static GameObject sound
         {
             get
             {
-                if (_sfx == null && !isQuitting)
+                if (_sound == null && !isQuitting)
                 {
-                    _sfx = new GameObject(nameof(Sfx));
-                    Object.DontDestroyOnLoad(_sfx);
+                    _sound = new GameObject(nameof(Sound));
+                    Object.DontDestroyOnLoad(_sound);
                 }
-                return _sfx;
+                return _sound;
             }
         }
 
@@ -50,10 +50,10 @@ namespace HHG.Audio.Runtime
         }
 
         private static List<AudioSource> activeSources = new List<AudioSource>();
-        private static Dictionary<AudioSource, SfxGroupAsset> sourceToGroupMap = new Dictionary<AudioSource, SfxGroupAsset>();
-        private static Dictionary<SfxGroupAsset, List<SfxLoopHandle>> groupToHandlesMap = new Dictionary<SfxGroupAsset, List<SfxLoopHandle>>();
-        private static Dictionary<SfxGroupAsset, int> voiceCounts = new Dictionary<SfxGroupAsset, int>();
-        private static Dictionary<SfxGroupAsset, float> timestamps = new Dictionary<SfxGroupAsset, float>();
+        private static Dictionary<AudioSource, SoundGroupAsset> sourceToGroupMap = new Dictionary<AudioSource, SoundGroupAsset>();
+        private static Dictionary<SoundGroupAsset, List<SoundLoopHandle>> groupToHandlesMap = new Dictionary<SoundGroupAsset, List<SoundLoopHandle>>();
+        private static Dictionary<SoundGroupAsset, int> voiceCounts = new Dictionary<SoundGroupAsset, int>();
+        private static Dictionary<SoundGroupAsset, float> timestamps = new Dictionary<SoundGroupAsset, float>();
         private static Coroutine coroutine;
         private static bool isQuitting;
 
@@ -92,7 +92,7 @@ namespace HHG.Audio.Runtime
                     AudioSource source = activeSources[i];
                     if (!source.isPlaying)
                     {
-                        SfxGroupAsset group = sourceToGroupMap[source];
+                        SoundGroupAsset group = sourceToGroupMap[source];
                         activeSources.RemoveAt(i);
                         sourceToGroupMap.Remove(source);
                         voiceCounts[group]--;
@@ -107,7 +107,7 @@ namespace HHG.Audio.Runtime
         private static AudioSource CreateAudioSource()
         {
             GameObject go = new GameObject(nameof(AudioSource));
-            go.transform.SetParent(sfx.transform);
+            go.transform.SetParent(sound.transform);
             go.SetActive(false);
             return go.AddComponent<AudioSource>();
         }
@@ -134,7 +134,7 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
                 PlayInternal(group, Space._2D);
             }
@@ -142,13 +142,13 @@ namespace HHG.Audio.Runtime
 
         public static void Play(string groupName, Vector3 position)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
                 PlayInternal(group, Space._3D, position);
             }
         }
 
-        public static void Play(SfxGroupAsset group)
+        public static void Play(SoundGroupAsset group)
         {
             if (!isQuitting && group != null)
             {
@@ -156,7 +156,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void Play(SfxGroupAsset group, Vector3 position)
+        public static void Play(SoundGroupAsset group, Vector3 position)
         {
             if (!isQuitting && group != null)
             {
@@ -166,7 +166,7 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
                 PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
             }
@@ -174,13 +174,13 @@ namespace HHG.Audio.Runtime
 
         public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
                 PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
             }
         }
 
-        public static void PlayLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -188,7 +188,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void PlayLooped(SfxGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(SoundGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -198,13 +198,13 @@ namespace HHG.Audio.Runtime
 
         public static void StopLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SfxGroupAsset group))
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
                 StopInternal(group, fadeDuration, fadeEase);
             }
         }
 
-        public static void StopLooped(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void StopLooped(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -212,7 +212,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void PlayInternal(SfxGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (group.IsLoaded)
             {
@@ -229,7 +229,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void PlayInternalNow(SfxGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, Func<float, float> fadeEase)
+        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, Func<float, float> fadeEase)
         {
             if (coroutine == null)
             {
@@ -256,11 +256,11 @@ namespace HHG.Audio.Runtime
 
                 if (loop)
                 {
-                    SfxLoopHandle loopHandle = group.PlayLooped(source, (float)space, position, fadeDuration, fadeEase);
+                    SoundLoopHandle loopHandle = group.PlayLooped(source, (float)space, position, fadeDuration, fadeEase);
 
                     if (!groupToHandlesMap.ContainsKey(group))
                     {
-                        groupToHandlesMap.Add(group, new List<SfxLoopHandle>());
+                        groupToHandlesMap.Add(group, new List<SoundLoopHandle>());
                     }
 
                     groupToHandlesMap[group].Add(loopHandle);
@@ -272,9 +272,9 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void StopInternal(SfxGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        private static void StopInternal(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
-            if (groupToHandlesMap.TryGetValue(group, out List<SfxLoopHandle> handles) && handles.Count > 0)
+            if (groupToHandlesMap.TryGetValue(group, out List<SoundLoopHandle> handles) && handles.Count > 0)
             {
                 int last = handles.Count - 1;
                 group.StopLooped(handles[last], fadeDuration, fadeEase);

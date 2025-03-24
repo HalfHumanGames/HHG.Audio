@@ -6,7 +6,7 @@ using UnityEngine;
 namespace HHG.Audio.Runtime
 {
     [RequireComponent(typeof(AudioSource))]
-    public class PlaylistManager : MonoBehaviour
+    public class Playlist : MonoBehaviour
     {
         [System.Serializable]
         private struct Priority
@@ -15,7 +15,7 @@ namespace HHG.Audio.Runtime
             public int End;
         }
 
-        private static PlaylistManager current;
+        private static Playlist current;
 
         [SerializeField] private float fadeDuration = 1f;
         [SerializeField, Row] private Priority priority;

@@ -7,14 +7,14 @@ using UnityEngine.Audio;
 
 namespace HHG.Audio.Runtime
 {
-    [CreateAssetMenu(fileName = "Sfx Group", menuName = "HHG/Audio/Sfx Group")]
-    public class SfxGroupAsset : StringNameAsset
+    [CreateAssetMenu(fileName = "Sound Group", menuName = "HHG/Audio/Sound Group")]
+    public class SoundGroupAsset : StringNameAsset
     {
-        public bool IsLoaded => LoadedCount == sfxs.Count;
-        public int LoadedCount => sfxs.Count(sfx => sfx.IsLoaded);
-        public List<Sfx> Sfxs => sfxs;
+        public bool IsLoaded => LoadedCount == sounds.Count;
+        public int LoadedCount => sounds.Count(sound => sound.IsLoaded);
+        public List<Sound> Sounds => sounds;
 
-        public event Action<SfxGroupAsset> Loaded;
+        public event Action<SoundGroupAsset> Loaded;
 
         [SerializeField] private float playChance = 1f;
         [SerializeField] private int priority;
@@ -26,23 +26,23 @@ namespace HHG.Audio.Runtime
         [SerializeField, Row] private MinMaxFloat distance = new MinMaxFloat(1f, 500f);
         [SerializeField] private AudioRolloffMode rolloffMode;
         [SerializeField] private AnimationCurve customRolloff;
-        [SerializeField] private List<Sfx> sfxs = new List<Sfx>();
+        [SerializeField] private List<Sound> sounds = new List<Sound>();
 
         public void Load()
         {
             if (!IsLoaded)
             {
-                foreach (Sfx sfx in sfxs)
+                foreach (Sound sound in sounds)
                 {
-                    sfx.Loaded += OnLoaded;
-                    sfx.Load();
+                    sound.Loaded += OnLoaded;
+                    sound.Load();
                 }
             }
         }
 
-        private void OnLoaded(Sfx sfx)
+        private void OnLoaded(Sound sound)
         {
-            sfx.Loaded -= OnLoaded;
+            sound.Loaded -= OnLoaded;
 
             if (IsLoaded)
             {
@@ -70,7 +70,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public SfxLoopHandle PlayLooped(AudioSource source, float spacialBlend, Vector3 position = default, float duration = 0f, Func<float, float> ease = null)
+        public SoundLoopHandle PlayLooped(AudioSource source, float spacialBlend, Vector3 position = default, float duration = 0f, Func<float, float> ease = null)
         {
             SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float delay);
             source.loop = true;
@@ -85,17 +85,17 @@ namespace HHG.Audio.Runtime
                 {
                     source.Play();
                 }
-                return new SfxLoopHandle(source);
+                return new SoundLoopHandle(source);
             }
             else
             {
                 source.volume = 0f;
                 Coroutine coroutine = source.FadeToDelayed(delay, finalVolume, duration, ease);
-                return new SfxLoopHandle(source, coroutine);
+                return new SoundLoopHandle(source, coroutine);
             }
         }
 
-        public void StopLooped(SfxLoopHandle handle, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public void StopLooped(SoundLoopHandle handle, float fadeDuration = 0f, Func<float, float> fadeEase = null)
         {
             if (handle.Coroutine != null)
             {
@@ -117,19 +117,19 @@ namespace HHG.Audio.Runtime
 
         private void SetupAudioSource(AudioSource source, float spacialBlend, Vector3 position, out float finalVolume, out float delay)
         {
-            Sfx sfx = sfxs.SelectByWeight(s => s.Weight);
-            source.clip = sfx.Clip;
+            Sound sound = sounds.SelectByWeight(s => s.Weight);
+            source.clip = sound.Clip;
             source.transform.position = position;
             source.priority = priority;
             source.outputAudioMixerGroup = mixerGroup;
-            source.pitch = pitch * sfx.Pitch;
+            source.pitch = pitch * sound.Pitch;
             source.spatialBlend = spacialBlend;
             source.minDistance = distance.Min;
             source.maxDistance = distance.Max;
             source.rolloffMode = rolloffMode;
             source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
-            finalVolume = volume * sfx.Volume;
-            delay = sfx.Delay;
+            finalVolume = volume * sound.Volume;
+            delay = sound.Delay;
         }
     }
 }

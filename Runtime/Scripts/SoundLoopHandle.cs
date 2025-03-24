@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace HHG.Audio.Runtime
 {
-    public class SfxLoopHandle
+    public class SoundLoopHandle
     {
         public AudioSource Source => source;
         public Coroutine Coroutine => coroutine;
@@ -10,12 +10,12 @@ namespace HHG.Audio.Runtime
         private AudioSource source;
         private Coroutine coroutine;
 
-        public SfxLoopHandle(AudioSource audioSource)
+        public SoundLoopHandle(AudioSource audioSource)
         {
             source = audioSource;
         }
 
-        public SfxLoopHandle(AudioSource audioSource, Coroutine tweenCoroutine) : this(audioSource)
+        public SoundLoopHandle(AudioSource audioSource, Coroutine tweenCoroutine) : this(audioSource)
         {
             coroutine = tweenCoroutine;
         }

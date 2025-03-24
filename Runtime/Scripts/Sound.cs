@@ -12,7 +12,7 @@ namespace HHG.Audio.Runtime
         - https://www.dtdevtools.com/docs/masteraudio/FilterFX.htm
     */
     [Serializable]
-    public partial class Sfx
+    public partial class Sound
     {
         public bool IsLoaded => clip != null;
         public AudioClip Clip => clip;
@@ -21,7 +21,7 @@ namespace HHG.Audio.Runtime
         public float Delay => delayRange.NextRand;
         public int Weight => weight;
 
-        public event Action<Sfx> Loaded;
+        public event Action<Sound> Loaded;
 
         [SerializeField] private AssetReferenceT<AudioClip> _clip;
         [SerializeField, Row] private MinMaxFloat volumeRange = 1f;
@@ -31,7 +31,7 @@ namespace HHG.Audio.Runtime
 
         private AudioClip clip;
 
-        public Sfx(string guid)
+        public Sound(string guid)
         {
             _clip = new AssetReferenceT<AudioClip>(guid);
         }

@@ -4,21 +4,22 @@ namespace HHG.Audio.Runtime
 {
     public class SoundEffect : MonoBehaviour
     {
-        public SfxGroupAsset SfxGroup => sfxGroup;
+        public SoundGroupAsset 
+            Group => soundGroup;
 
-        [SerializeField] private Sfx.Space space;
-        [SerializeField] private SfxGroupAsset sfxGroup;
+        [SerializeField] private Sound.Space space;
+        [SerializeField] private SoundGroupAsset soundGroup;
 
         public void Play()
         {
             switch (space)
             {
-                case Sfx.Space._2D:
-                    Sfx.Play(sfxGroup);
+                case Sound.Space._2D:
+                    Sound.Play(soundGroup);
                     break;
 
                 default:
-                    Sfx.Play(sfxGroup, transform.position);
+                    Sound.Play(soundGroup, transform.position);
                     break;
             }
         }

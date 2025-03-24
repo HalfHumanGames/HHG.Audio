@@ -5,20 +5,20 @@ using UnityEngine;
 namespace HHG.Audio.Runtime
 {
     [Serializable]
-    public class ActionSfx : IAction
+    public class ActionPlaySound : IAction
     {
-        [SerializeField, Dropdown] private SfxGroupAsset sfx;
+        [SerializeField, Dropdown] private SoundGroupAsset sound;
         [SerializeField] private bool playAtTransform;
 
         public void Invoke(MonoBehaviour invoker)
         {
             if (playAtTransform)
             {
-                Sfx.Play(sfx, invoker.transform.position);
+                Sound.Play(sound, invoker.transform.position);
             }
             else
             {
-                Sfx.Play(sfx);
+                Sound.Play(sound);
             }
         }
     }
