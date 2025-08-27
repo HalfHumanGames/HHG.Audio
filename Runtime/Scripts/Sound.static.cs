@@ -4,11 +4,9 @@ using UnityEngine.Pool;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
-using System;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
-using Object = UnityEngine.Object;
 
 namespace HHG.Audio.Runtime
 {
@@ -164,7 +162,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void PlayLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(string groupName, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
@@ -172,7 +170,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
@@ -180,7 +178,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void PlayLooped(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -188,7 +186,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void PlayLooped(SoundGroupAsset group, Vector3 position, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void PlayLooped(SoundGroupAsset group, Vector3 position, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -196,7 +194,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void StopLooped(string groupName, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void StopLooped(string groupName, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
@@ -204,7 +202,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        public static void StopLooped(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        public static void StopLooped(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && group != null)
             {
@@ -212,7 +210,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (group.IsLoaded)
             {
@@ -229,7 +227,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, Func<float, float> fadeEase)
+        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, System.Func<float, float> fadeEase)
         {
             if (coroutine == null)
             {
@@ -272,7 +270,7 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void StopInternal(SoundGroupAsset group, float fadeDuration = 0f, Func<float, float> fadeEase = null)
+        private static void StopInternal(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (groupToHandlesMap.TryGetValue(group, out List<SoundLoopHandle> handles) && handles.Count > 0)
             {
