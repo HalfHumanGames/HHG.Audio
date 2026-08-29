@@ -20,6 +20,7 @@
     "url": "https://github.com/HalfHumanGames"
   },
   "dependencies": {
-    "com.halfhumangames.common": "1.0.1"
+    "com.halfhumangames.common": "1.0.1",
+    "com.unity.timeline": "1.8.10"
   }
 }
