@@ -29,7 +29,10 @@ namespace HHG.Audio.Runtime
         [SerializeField, Row] private MinMaxFloat delayRange = 0f;
         [SerializeField] private int weight = 1;
 
-        private AudioClip clip;
+        // Unity caches this across play and edit mode
+        // unless we add this NonSerialized attribute
+        // Without it, sounds plays stale audio slips
+        [NonSerialized] private AudioClip clip;
 
         public Sound(string guid)
         {

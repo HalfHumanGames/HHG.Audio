@@ -55,14 +55,15 @@ namespace HHG.Audio.Runtime
             return voiceCount < maxVoices && Time.unscaledTime - timestamp > cooldown && RandomUtil.Chance(playChance);
         }
 
-        public void Play(AudioSource source, float spacialBlend, Vector3 position = default)
+        public void Play(AudioSource source, float spacialBlend, Vector3 position = default, float delay = 0f)
         {
-            SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float delay);
+            SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float baseDelay);
+            float totalDelay = baseDelay + delay;
             source.loop = false;
             source.volume = finalVolume;
-            if (delay >= 0f)
+            if (totalDelay > 0f)
             {
-                source.PlayDelayed(delay);
+                source.PlayDelayed(totalDelay);
             }
             else
             {
@@ -127,7 +128,8 @@ namespace HHG.Audio.Runtime
             source.minDistance = distance.Min;
             source.maxDistance = distance.Max;
             source.rolloffMode = rolloffMode;
-            source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
+            source.playOnAwake = false;
+            if (source.rolloffMode == AudioRolloffMode.Custom) source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
             finalVolume = volume * sound.Volume;
             delay = sound.Delay;
         }

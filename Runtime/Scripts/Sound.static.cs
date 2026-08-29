@@ -55,9 +55,17 @@ namespace HHG.Audio.Runtime
         private static Coroutine coroutine;
         private static bool isQuitting;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
+            // Unity Editor retains state across play and edit modes
+            // so we clear all collections to prevent stale caches
+            activeSources.Clear();
+            sourceToGroupMap.Clear();
+            groupToHandlesMap.Clear();
+            voiceCounts.Clear();
+            timestamps.Clear();
+
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
             Application.quitting -= OnApplicationQuit;
@@ -90,11 +98,8 @@ namespace HHG.Audio.Runtime
                     AudioSource source = activeSources[i];
                     if (!source.isPlaying)
                     {
-                        SoundGroupAsset group = sourceToGroupMap[source];
                         activeSources.RemoveAt(i);
-                        sourceToGroupMap.Remove(source);
-                        voiceCounts[group]--;
-                        pool.Release(source);
+                        ReleaseSource(source);
                         i--;
                     }
                 }
@@ -123,6 +128,14 @@ namespace HHG.Audio.Runtime
         private static void OnDestroyAudioSource(AudioSource source)
         {
             Object.Destroy(source.gameObject);
+        }
+
+        private static void ReleaseSource(AudioSource source)
+        {
+            SoundGroupAsset group = sourceToGroupMap[source];
+            sourceToGroupMap.Remove(source);
+            voiceCounts[group]--;
+            pool.Release(source);
         }
 
         private static void OnApplicationQuit()
@@ -162,11 +175,43 @@ namespace HHG.Audio.Runtime
             }
         }
 
+        public static void PlayDelayed(string groupName, float delay)
+        {
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
+            {
+                PlayInternal(group, Space._2D, delay: delay);
+            }
+        }
+
+        public static void PlayDelayed(string groupName, float delay, Vector3 position)
+        {
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
+            {
+                PlayInternal(group,  Space._3D, position, delay: delay);
+            }
+        }
+
+        public static void PlayDelayed(SoundGroupAsset group, float delay)
+        {
+            if (!isQuitting && group != null)
+            {
+                PlayInternal(group,  Space._2D, delay: delay);
+            }
+        }
+
+        public static void PlayDelayed(SoundGroupAsset group, float delay, Vector3 position)
+        {
+            if (!isQuitting && group != null)
+            {
+                PlayInternal(group,  Space._3D, position, delay: delay);
+            }
+        }
+
         public static void PlayLooped(string groupName, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._2D, default, true, 0f, fadeDuration, fadeEase);
             }
         }
 
@@ -174,7 +219,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._3D, position, true, 0f, fadeDuration, fadeEase);
             }
         }
 
@@ -182,7 +227,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && group != null)
             {
-                PlayInternal(group, Space._2D, default, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._2D, default, true, 0f, fadeDuration, fadeEase);
             }
         }
 
@@ -190,7 +235,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && group != null)
             {
-                PlayInternal(group, Space._3D, position, true, fadeDuration, fadeEase);
+                PlayInternal(group, Space._3D, position, true, 0f, fadeDuration, fadeEase);
             }
         }
 
@@ -210,24 +255,40 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
+        public static void Stop(string groupName)
+        {
+            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
+            {
+                StopAllInternal(group);
+            }
+        }
+
+        public static void Stop(SoundGroupAsset group)
+        {
+            if (!isQuitting && group != null)
+            {
+                StopAllInternal(group);
+            }
+        }
+
+        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float delay = 0f, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
         {
             if (group.IsLoaded)
             {
-                PlayInternalNow(group, space, position, loop, fadeDuration, fadeEase);
+                PlayInternalNow(group, space, position, loop, delay, fadeDuration, fadeEase);
             }
             else
             {
                 group.Loaded += group =>
                 {
-                    PlayInternalNow(group, space, position, loop, fadeDuration, fadeEase);
+                    PlayInternalNow(group, space, position, loop, delay, fadeDuration, fadeEase);
                 };
 
                 group.Load();
             }
         }
 
-        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float fadeDuration, System.Func<float, float> fadeEase)
+        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float delay, float fadeDuration, System.Func<float, float> fadeEase)
         {
             if (coroutine == null)
             {
@@ -265,7 +326,7 @@ namespace HHG.Audio.Runtime
                 }
                 else
                 {
-                    group.Play(source, (float)space, position);
+                    group.Play(source, (float)space, position, delay);
                 }
             }
         }
@@ -277,6 +338,26 @@ namespace HHG.Audio.Runtime
                 int last = handles.Count - 1;
                 group.StopLooped(handles[last], fadeDuration, fadeEase);
                 handles.RemoveAt(last);
+            }
+        }
+
+        private static void StopAllInternal(SoundGroupAsset group)
+        {
+            while (groupToHandlesMap.TryGetValue(group, out List<SoundLoopHandle> handles) && handles.Count > 0)
+            {
+                StopInternal(group);
+            }
+
+            for (int i = activeSources.Count - 1; i >= 0; i--)
+            {
+                AudioSource source = activeSources[i];
+
+                if (sourceToGroupMap.TryGetValue(source, out SoundGroupAsset sourceGroup) && sourceGroup == group)
+                {
+                    source.Stop();
+                    activeSources.RemoveAt(i);
+                    ReleaseSource(source);
+                }
             }
         }
     }
