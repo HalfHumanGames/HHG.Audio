@@ -39,9 +39,9 @@ namespace HHG.Audio.Runtime
             _clip = new AssetReferenceT<AudioClip>(guid);
         }
 
-        public void Load()
+        public void Load(bool force = false)
         {
-            if (clip == null)
+            if (force || clip == null)
             {
                 var handle = Addressables.LoadAssetAsync<AudioClip>(_clip);
 

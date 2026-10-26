@@ -16,11 +16,25 @@ namespace HHG.Audio.Runtime
                     case SoundSignalEmitter.ActionType.Play:
                         if (playAtTransform)
                         {
-                            Sound.Play(signalEmitter.SoundGroup, transform.position);
+                            if (signalEmitter.Loop)
+                            {
+                                Sound.PlayLooped(signalEmitter.SoundGroup, transform.position);
+                            }
+                            else
+                            {
+                                Sound.Play(signalEmitter.SoundGroup, transform.position);
+                            }
                         }
                         else
                         {
-                            Sound.Play(signalEmitter.SoundGroup);
+                            if (signalEmitter.Loop)
+                            {
+                                Sound.PlayLooped(signalEmitter.SoundGroup);
+                            }
+                            else
+                            {
+                                Sound.Play(signalEmitter.SoundGroup);
+                            }
                         }
                         break;
 

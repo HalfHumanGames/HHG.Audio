@@ -49,9 +49,11 @@ namespace HHG.Audio.Runtime
 
         private static List<AudioSource> activeSources = new List<AudioSource>();
         private static Dictionary<AudioSource, SoundGroupAsset> sourceToGroupMap = new Dictionary<AudioSource, SoundGroupAsset>();
+        private static Dictionary<AudioSource, Coroutine> sourceToFadeCoroutineMap = new Dictionary<AudioSource, Coroutine>();
         private static Dictionary<SoundGroupAsset, List<SoundLoopHandle>> groupToHandlesMap = new Dictionary<SoundGroupAsset, List<SoundLoopHandle>>();
         private static Dictionary<SoundGroupAsset, int> voiceCounts = new Dictionary<SoundGroupAsset, int>();
         private static Dictionary<SoundGroupAsset, float> timestamps = new Dictionary<SoundGroupAsset, float>();
+        private static HashSet<SoundGroupAsset> layeringInProgress = new HashSet<SoundGroupAsset>();
         private static Coroutine coroutine;
         private static bool isQuitting;
 
@@ -62,9 +64,11 @@ namespace HHG.Audio.Runtime
             // so we clear all collections to prevent stale caches
             activeSources.Clear();
             sourceToGroupMap.Clear();
+            sourceToFadeCoroutineMap.Clear();
             groupToHandlesMap.Clear();
             voiceCounts.Clear();
             timestamps.Clear();
+            layeringInProgress.Clear();
 
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
@@ -84,8 +88,12 @@ namespace HHG.Audio.Runtime
             }
 
             activeSources.Clear();
+            sourceToGroupMap.Clear();
+            sourceToFadeCoroutineMap.Clear();
+            groupToHandlesMap.Clear();
             voiceCounts.Clear();
             timestamps.Clear();
+            layeringInProgress.Clear();
             coroutine = null;
         }
 
@@ -132,6 +140,12 @@ namespace HHG.Audio.Runtime
 
         private static void ReleaseSource(AudioSource source)
         {
+            if (sourceToFadeCoroutineMap.TryGetValue(source, out Coroutine fadeCoroutine))
+            {
+                CoroutineUtil.StopCoroutine(fadeCoroutine);
+                sourceToFadeCoroutineMap.Remove(source);
+            }
+
             SoundGroupAsset group = sourceToGroupMap[source];
             sourceToGroupMap.Remove(source);
             voiceCounts[group]--;
@@ -147,7 +161,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._2D);
+                Play(group);
             }
         }
 
@@ -155,7 +169,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._3D, position);
+                Play(group, position);
             }
         }
 
@@ -164,6 +178,7 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._2D);
+                CascadeLayers(group, layerGroup => Play(layerGroup));
             }
         }
 
@@ -172,6 +187,7 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._3D, position);
+                CascadeLayers(group, layerGroup => Play(layerGroup, position));
             }
         }
 
@@ -179,7 +195,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._2D, delay: delay);
+                PlayDelayed(group, delay);
             }
         }
 
@@ -187,7 +203,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group,  Space._3D, position, delay: delay);
+                PlayDelayed(group, delay, position);
             }
         }
 
@@ -195,7 +211,8 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && group != null)
             {
-                PlayInternal(group,  Space._2D, delay: delay);
+                PlayInternal(group, Space._2D, delay: delay);
+                CascadeLayers(group, layerGroup => PlayDelayed(layerGroup, delay));
             }
         }
 
@@ -203,7 +220,8 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && group != null)
             {
-                PlayInternal(group,  Space._3D, position, delay: delay);
+                PlayInternal(group, Space._3D, position, delay: delay);
+                CascadeLayers(group, layerGroup => PlayDelayed(layerGroup, delay, position));
             }
         }
 
@@ -211,7 +229,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._2D, default, true, 0f, fadeDuration, fadeEase);
+                PlayLooped(group, fadeDuration, fadeEase);
             }
         }
 
@@ -219,7 +237,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                PlayInternal(group, Space._3D, position, true, 0f, fadeDuration, fadeEase);
+                PlayLooped(group, position, fadeDuration, fadeEase);
             }
         }
 
@@ -228,6 +246,7 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._2D, default, true, 0f, fadeDuration, fadeEase);
+                CascadeLayers(group, layerGroup => PlayLooped(layerGroup, fadeDuration, fadeEase));
             }
         }
 
@@ -236,6 +255,7 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 PlayInternal(group, Space._3D, position, true, 0f, fadeDuration, fadeEase);
+                CascadeLayers(group, layerGroup => PlayLooped(layerGroup, position, fadeDuration, fadeEase));
             }
         }
 
@@ -243,7 +263,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                StopInternal(group, fadeDuration, fadeEase);
+                StopLooped(group, fadeDuration, fadeEase);
             }
         }
 
@@ -252,6 +272,7 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 StopInternal(group, fadeDuration, fadeEase);
+                CascadeLayers(group, layerGroup => StopLooped(layerGroup, fadeDuration, fadeEase));
             }
         }
 
@@ -259,7 +280,7 @@ namespace HHG.Audio.Runtime
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                StopAllInternal(group);
+                Stop(group);
             }
         }
 
@@ -268,7 +289,26 @@ namespace HHG.Audio.Runtime
             if (!isQuitting && group != null)
             {
                 StopAllInternal(group);
+                CascadeLayers(group, layerGroup => Stop(layerGroup));
             }
+        }
+
+        // Re-entrancy guarded: if a group's layerGroups ever forms a cycle (including
+        // self-reference), a group already being expanded is skipped rather than
+        // recursing forever.
+        private static void CascadeLayers(SoundGroupAsset group, System.Action<SoundGroupAsset> action)
+        {
+            if (!group.HasLayers || !layeringInProgress.Add(group))
+            {
+                return;
+            }
+
+            foreach (SoundGroupAsset layerGroup in group.LayerGroups)
+            {
+                action(layerGroup);
+            }
+
+            layeringInProgress.Remove(group);
         }
 
         private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float delay = 0f, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
@@ -326,7 +366,7 @@ namespace HHG.Audio.Runtime
                 }
                 else
                 {
-                    group.Play(source, (float)space, position, delay);
+                    sourceToFadeCoroutineMap[source] = group.Play(source, (float)space, position, delay);
                 }
             }
         }
@@ -354,9 +394,19 @@ namespace HHG.Audio.Runtime
 
                 if (sourceToGroupMap.TryGetValue(source, out SoundGroupAsset sourceGroup) && sourceGroup == group)
                 {
-                    source.Stop();
-                    activeSources.RemoveAt(i);
-                    ReleaseSource(source);
+                    if (sourceToFadeCoroutineMap.TryGetValue(source, out Coroutine fadeInCoroutine))
+                    {
+                        CoroutineUtil.StopCoroutine(fadeInCoroutine);
+                    }
+
+                    Coroutine fadeOutCoroutine = group.Stop(source);
+                    sourceToFadeCoroutineMap[source] = fadeOutCoroutine;
+
+                    if (fadeOutCoroutine == null)
+                    {
+                        activeSources.RemoveAt(i);
+                        ReleaseSource(source);
+                    }
                 }
             }
         }

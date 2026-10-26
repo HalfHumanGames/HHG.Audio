@@ -15,9 +15,13 @@ namespace HHG.Audio.Runtime
 
         [SerializeField] private SoundGroupAsset soundGroup;
         [SerializeField] private ActionType action;
+        [SerializeField, ShowIf(nameof(isPlay), true)] private bool loop;
 
         public SoundGroupAsset SoundGroup => soundGroup;
         public ActionType Action => action;
+        public bool Loop => loop;
+
+        private bool isPlay => action == ActionType.Play;
 
         public PropertyName id => new PropertyName(nameof(SoundSignalEmitter));
     }

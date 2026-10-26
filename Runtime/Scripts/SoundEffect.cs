@@ -4,8 +4,7 @@ namespace HHG.Audio.Runtime
 {
     public class SoundEffect : MonoBehaviour
     {
-        public SoundGroupAsset 
-            Group => soundGroup;
+        public SoundGroupAsset Group => soundGroup;
 
         [SerializeField] private bool playOnAwake;
         [SerializeField] private SoundGroupAsset soundGroup;
@@ -38,6 +37,11 @@ namespace HHG.Audio.Runtime
                     Sound.PlayDelayed(soundGroup, delay, position);
                     break;
             }
+        }
+
+        public void Stop()
+        {
+            Sound.Stop(soundGroup);
         }
     }
 }
