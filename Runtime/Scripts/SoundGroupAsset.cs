@@ -24,7 +24,24 @@ namespace HHG.Audio.Runtime
 
         public bool IsLoaded => LoadedCount == sounds.Count;
         public int LoadedCount => sounds.Count(sound => sound.IsLoaded);
+
+        public bool IsLoading
+        {
+            get
+            {
+                foreach (Sound sound in sounds)
+                {
+                    if (sound.IsLoading)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
         public List<Sound> Sounds => sounds;
+        public bool HasSounds => sounds.Count > 0;
         public bool HasLayers => hasLayers;
         public IReadOnlyList<SoundGroupAsset> LayerGroups => layerGroups;
 
@@ -70,8 +87,11 @@ namespace HHG.Audio.Runtime
             {
                 foreach (Sound sound in sounds)
                 {
-                    sound.Loaded += OnLoaded;
-                    sound.Load();
+                    if (!sound.IsLoaded)
+                    {
+                        sound.Loaded += OnLoaded;
+                        sound.Load();
+                    }
                 }
             }
 
@@ -131,27 +151,29 @@ namespace HHG.Audio.Runtime
             else
             {
                 source.volume = 0f;
-                return source.FadeToDelayed(totalDelay, finalVolume, fadeInDuration);
+                return source.FadeToDelayed(totalDelay, finalVolume, fadeInDuration, FadeCurves.In);
             }
         }
 
-        public Coroutine Stop(AudioSource source)
+        public Coroutine Stop(AudioSource source, float fadeDuration = -1f)
         {
-            if (fadeOutDuration <= 0f)
+            float duration = fadeDuration >= 0f ? fadeDuration : fadeOutDuration;
+            if (duration <= 0f)
             {
                 source.Stop();
                 return null;
             }
             else
             {
-                return source.FadeTo(0f, fadeOutDuration);
+                return source.FadeTo(0f, duration, FadeCurves.Out);
             }
         }
 
-        public SoundLoopHandle PlayLooped(AudioSource source, float spacialBlend, Vector3 position = default, float duration = 0f, Func<float, float> ease = null)
+        public Coroutine PlayLooped(AudioSource source, float spacialBlend, Vector3 position = default, float fadeDuration = -1f)
         {
             SetupAudioSource(source, spacialBlend, position, out float finalVolume, out float delay);
             source.loop = true;
+            float duration = fadeDuration >= 0f ? fadeDuration : fadeInDuration;
             if (duration <= 0f)
             {
                 source.volume = finalVolume;
@@ -163,33 +185,12 @@ namespace HHG.Audio.Runtime
                 {
                     source.Play();
                 }
-                return new SoundLoopHandle(source);
+                return null;
             }
             else
             {
                 source.volume = 0f;
-                Coroutine coroutine = source.FadeToDelayed(delay, finalVolume, duration, ease);
-                return new SoundLoopHandle(source, coroutine);
-            }
-        }
-
-        public void StopLooped(SoundLoopHandle handle, float fadeDuration = 0f, Func<float, float> fadeEase = null)
-        {
-            if (handle.Coroutine != null)
-            {
-                CoroutineUtil.StopCoroutine(handle.Coroutine);
-            }
-            if (handle.Source != null)
-            {
-
-                if (fadeDuration <= 0f)
-                {
-                    handle.Source.Stop();
-                }
-                else
-                {
-                    handle.Source.FadeTo(0f, fadeDuration, fadeEase);
-                }
+                return source.FadeToDelayed(delay, finalVolume, duration, FadeCurves.In);
             }
         }
 
@@ -224,7 +225,6 @@ namespace HHG.Audio.Runtime
 
         private void OnValidate()
         {
-            // Only reload clips edited during play mode, since loading in edit mode leaks Addressables handles
             if (!Application.isPlaying)
             {
                 return;

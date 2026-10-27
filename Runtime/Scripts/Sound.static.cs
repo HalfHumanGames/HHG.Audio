@@ -47,10 +47,8 @@ namespace HHG.Audio.Runtime
             }
         }
 
-        private static List<AudioSource> activeSources = new List<AudioSource>();
-        private static Dictionary<AudioSource, SoundGroupAsset> sourceToGroupMap = new Dictionary<AudioSource, SoundGroupAsset>();
-        private static Dictionary<AudioSource, Coroutine> sourceToFadeCoroutineMap = new Dictionary<AudioSource, Coroutine>();
-        private static Dictionary<SoundGroupAsset, List<SoundLoopHandle>> groupToHandlesMap = new Dictionary<SoundGroupAsset, List<SoundLoopHandle>>();
+        // Includes instances still waiting for their group to load (no source yet)
+        private static List<SoundInstance> activeInstances = new List<SoundInstance>();
         private static Dictionary<SoundGroupAsset, int> voiceCounts = new Dictionary<SoundGroupAsset, int>();
         private static Dictionary<SoundGroupAsset, float> timestamps = new Dictionary<SoundGroupAsset, float>();
         private static HashSet<SoundGroupAsset> layeringInProgress = new HashSet<SoundGroupAsset>();
@@ -62,10 +60,7 @@ namespace HHG.Audio.Runtime
         {
             // Unity Editor retains state across play and edit modes
             // so we clear all collections to prevent stale caches
-            activeSources.Clear();
-            sourceToGroupMap.Clear();
-            sourceToFadeCoroutineMap.Clear();
-            groupToHandlesMap.Clear();
+            activeInstances.Clear();
             voiceCounts.Clear();
             timestamps.Clear();
             layeringInProgress.Clear();
@@ -82,15 +77,12 @@ namespace HHG.Audio.Runtime
 
         private static void OnSceneUnloaded(Scene scene)
         {
-            foreach (AudioSource activeSource in activeSources)
+            for (int i = activeInstances.Count - 1; i >= 0; i--)
             {
-                pool.Release(activeSource);
+                ReleaseInstance(activeInstances[i]);
             }
 
-            activeSources.Clear();
-            sourceToGroupMap.Clear();
-            sourceToFadeCoroutineMap.Clear();
-            groupToHandlesMap.Clear();
+            activeInstances.Clear();
             voiceCounts.Clear();
             timestamps.Clear();
             layeringInProgress.Clear();
@@ -101,16 +93,32 @@ namespace HHG.Audio.Runtime
         {
             while (true)
             {
-                for (int i = 0; i < activeSources.Count; i++)
+                for (int i = activeInstances.Count - 1; i >= 0; i--)
                 {
-                    AudioSource source = activeSources[i];
-                    if (!source.isPlaying)
+                    SoundInstance instance = activeInstances[i];
+
+                    if (instance.Source != null)
                     {
-                        activeSources.RemoveAt(i);
-                        ReleaseSource(source);
-                        i--;
+                        if (!instance.Source.isPlaying)
+                        {
+                            ReleaseInstance(instance);
+                        }
+                    }
+                    else if (instance.LoadedHandler != null)
+                    {
+                        // A clip failed to load (the error is already logged), so the group will never finish loading
+                        if (!instance.Group.IsLoaded && !instance.Group.IsLoading)
+                        {
+                            ReleaseInstance(instance);
+                        }
+                    }
+                    // Groups with only layers have no source, so they last as long as their layers
+                    else if (!instance.HasActiveLayers)
+                    {
+                        ReleaseInstance(instance);
                     }
                 }
+
                 yield return new WaitForEndOfFrame();
             }
         }
@@ -138,277 +146,287 @@ namespace HHG.Audio.Runtime
             Object.Destroy(source.gameObject);
         }
 
-        private static void ReleaseSource(AudioSource source)
-        {
-            if (sourceToFadeCoroutineMap.TryGetValue(source, out Coroutine fadeCoroutine))
-            {
-                CoroutineUtil.StopCoroutine(fadeCoroutine);
-                sourceToFadeCoroutineMap.Remove(source);
-            }
-
-            SoundGroupAsset group = sourceToGroupMap[source];
-            sourceToGroupMap.Remove(source);
-            voiceCounts[group]--;
-            pool.Release(source);
-        }
-
         private static void OnApplicationQuit()
         {
             isQuitting = true;
         }
 
-        public static void Play(string groupName)
+        public static SoundHandle Play(string groupName)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? Play(group) : default;
+        }
+
+        public static SoundHandle Play(string groupName, Vector3 position)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? Play(group, position) : default;
+        }
+
+        public static SoundHandle Play(SoundGroupAsset group)
+        {
+            return PlayInternal(group, Space._2D);
+        }
+
+        public static SoundHandle Play(SoundGroupAsset group, Vector3 position)
+        {
+            return PlayInternal(group, Space._3D, position);
+        }
+
+        public static SoundHandle PlayDelayed(string groupName, float delay)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? PlayDelayed(group, delay) : default;
+        }
+
+        public static SoundHandle PlayDelayed(string groupName, float delay, Vector3 position)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? PlayDelayed(group, delay, position) : default;
+        }
+
+        public static SoundHandle PlayDelayed(SoundGroupAsset group, float delay)
+        {
+            return PlayInternal(group, Space._2D, delay: delay);
+        }
+
+        public static SoundHandle PlayDelayed(SoundGroupAsset group, float delay, Vector3 position)
+        {
+            return PlayInternal(group, Space._3D, position, delay: delay);
+        }
+
+        public static SoundHandle PlayLooped(string groupName, float fadeDuration = -1f)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? PlayLooped(group, fadeDuration) : default;
+        }
+
+        public static SoundHandle PlayLooped(string groupName, Vector3 position, float fadeDuration = -1f)
+        {
+            return !isQuitting && Database.TryGet(groupName, out SoundGroupAsset group) ? PlayLooped(group, position, fadeDuration) : default;
+        }
+
+        public static SoundHandle PlayLooped(SoundGroupAsset group, float fadeDuration = -1f)
+        {
+            return PlayInternal(group, Space._2D, default, true, 0f, fadeDuration);
+        }
+
+        public static SoundHandle PlayLooped(SoundGroupAsset group, Vector3 position, float fadeDuration = -1f)
+        {
+            return PlayInternal(group, Space._3D, position, true, 0f, fadeDuration);
+        }
+
+        public static void Stop(SoundHandle handle, float fadeDuration = -1f)
+        {
+            if (!isQuitting && handle.TryGetInstance(out SoundInstance instance))
+            {
+                StopInstance(instance, fadeDuration);
+            }
+        }
+
+        public static void Stop(string groupName, float fadeDuration = -1f)
         {
             if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
             {
-                Play(group);
+                Stop(group, fadeDuration);
             }
         }
 
-        public static void Play(string groupName, Vector3 position)
-        {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
-            {
-                Play(group, position);
-            }
-        }
-
-        public static void Play(SoundGroupAsset group)
+        public static void Stop(SoundGroupAsset group, float fadeDuration = -1f)
         {
             if (!isQuitting && group != null)
             {
-                PlayInternal(group, Space._2D);
-                CascadeLayers(group, layerGroup => Play(layerGroup));
+                // Stopping an instance also stops its layers, which can remove other entries from the list
+                using (Pool.GetList(out List<SoundHandle> handles))
+                {
+                    foreach (SoundInstance instance in activeInstances)
+                    {
+                        if (instance.Group == group)
+                        {
+                            handles.Add(new SoundHandle(instance));
+                        }
+                    }
+
+                    foreach (SoundHandle handle in handles)
+                    {
+                        Stop(handle, fadeDuration);
+                    }
+                }
             }
         }
 
-        public static void Play(SoundGroupAsset group, Vector3 position)
+        private static SoundHandle PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float delay = 0f, float fadeDuration = -1f)
         {
-            if (!isQuitting && group != null)
+            if (isQuitting || group == null)
             {
-                PlayInternal(group, Space._3D, position);
-                CascadeLayers(group, layerGroup => Play(layerGroup, position));
+                return default;
             }
+
+            SoundInstance instance = CreateInstance(group, space, position, loop, delay, fadeDuration);
+            return instance != null ? new SoundHandle(instance) : default;
         }
 
-        public static void PlayDelayed(string groupName, float delay)
+        private static SoundInstance CreateInstance(SoundGroupAsset group, Space space, Vector3 position, bool loop, float delay, float fadeDuration)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
+            // Guards against layer groups that form a cycle (including self-reference)
+            if (!layeringInProgress.Add(group))
             {
-                PlayDelayed(group, delay);
+                return null;
             }
-        }
 
-        public static void PlayDelayed(string groupName, float delay, Vector3 position)
-        {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
+            SoundInstance instance = null;
+
+            if (group.IsLoaded)
             {
-                PlayDelayed(group, delay, position);
+                if (CanPlay(group))
+                {
+                    instance = GetInstance(group, loop);
+                    StartInstance(instance, space, position, delay, fadeDuration);
+                }
             }
-        }
-
-        public static void PlayDelayed(SoundGroupAsset group, float delay)
-        {
-            if (!isQuitting && group != null)
+            else
             {
-                PlayInternal(group, Space._2D, delay: delay);
-                CascadeLayers(group, layerGroup => PlayDelayed(layerGroup, delay));
-            }
-        }
+                instance = GetInstance(group, loop);
+                SoundHandle handle = new SoundHandle(instance);
+                instance.LoadedHandler = _ => OnInstanceGroupLoaded(handle, space, position, delay, fadeDuration);
+                group.Loaded += instance.LoadedHandler;
+                group.Load();
 
-        public static void PlayDelayed(SoundGroupAsset group, float delay, Vector3 position)
-        {
-            if (!isQuitting && group != null)
+                // The load can complete immediately and release the instance if it can't play
+                if (!handle.IsValid)
+                {
+                    instance = null;
+                }
+            }
+
+            if (instance != null && group.HasLayers)
             {
-                PlayInternal(group, Space._3D, position, delay: delay);
-                CascadeLayers(group, layerGroup => PlayDelayed(layerGroup, delay, position));
+                foreach (SoundGroupAsset layerGroup in group.LayerGroups)
+                {
+                    SoundInstance layerInstance = CreateInstance(layerGroup, space, position, loop, delay, fadeDuration);
+
+                    if (layerInstance != null)
+                    {
+                        instance.Layers.Add(new SoundHandle(layerInstance));
+                    }
+                }
             }
+
+            layeringInProgress.Remove(group);
+            return instance;
         }
 
-        public static void PlayLooped(string groupName, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
+        private static void OnInstanceGroupLoaded(SoundHandle handle, Space space, Vector3 position, float delay, float fadeDuration)
         {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
-            {
-                PlayLooped(group, fadeDuration, fadeEase);
-            }
-        }
-
-        public static void PlayLooped(string groupName, Vector3 position, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
-            {
-                PlayLooped(group, position, fadeDuration, fadeEase);
-            }
-        }
-
-        public static void PlayLooped(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (!isQuitting && group != null)
-            {
-                PlayInternal(group, Space._2D, default, true, 0f, fadeDuration, fadeEase);
-                CascadeLayers(group, layerGroup => PlayLooped(layerGroup, fadeDuration, fadeEase));
-            }
-        }
-
-        public static void PlayLooped(SoundGroupAsset group, Vector3 position, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (!isQuitting && group != null)
-            {
-                PlayInternal(group, Space._3D, position, true, 0f, fadeDuration, fadeEase);
-                CascadeLayers(group, layerGroup => PlayLooped(layerGroup, position, fadeDuration, fadeEase));
-            }
-        }
-
-        public static void StopLooped(string groupName, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
-            {
-                StopLooped(group, fadeDuration, fadeEase);
-            }
-        }
-
-        public static void StopLooped(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (!isQuitting && group != null)
-            {
-                StopInternal(group, fadeDuration, fadeEase);
-                CascadeLayers(group, layerGroup => StopLooped(layerGroup, fadeDuration, fadeEase));
-            }
-        }
-
-        public static void Stop(string groupName)
-        {
-            if (!isQuitting && Database.TryGet(groupName, out SoundGroupAsset group))
-            {
-                Stop(group);
-            }
-        }
-
-        public static void Stop(SoundGroupAsset group)
-        {
-            if (!isQuitting && group != null)
-            {
-                StopAllInternal(group);
-                CascadeLayers(group, layerGroup => Stop(layerGroup));
-            }
-        }
-
-        // Re-entrancy guarded: if a group's layerGroups ever forms a cycle (including
-        // self-reference), a group already being expanded is skipped rather than
-        // recursing forever.
-        private static void CascadeLayers(SoundGroupAsset group, System.Action<SoundGroupAsset> action)
-        {
-            if (!group.HasLayers || !layeringInProgress.Add(group))
+            if (!handle.TryGetInstance(out SoundInstance instance))
             {
                 return;
             }
 
-            foreach (SoundGroupAsset layerGroup in group.LayerGroups)
-            {
-                action(layerGroup);
-            }
+            instance.Group.Loaded -= instance.LoadedHandler;
+            instance.LoadedHandler = null;
 
-            layeringInProgress.Remove(group);
-        }
-
-        private static void PlayInternal(SoundGroupAsset group, Space space, Vector3 position = default, bool loop = false, float delay = 0f, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
-        {
-            if (group.IsLoaded)
+            if (CanPlay(instance.Group))
             {
-                PlayInternalNow(group, space, position, loop, delay, fadeDuration, fadeEase);
+                StartInstance(instance, space, position, delay, fadeDuration);
             }
             else
             {
-                group.Loaded += group =>
-                {
-                    PlayInternalNow(group, space, position, loop, delay, fadeDuration, fadeEase);
-                };
-
-                group.Load();
+                StopInstance(instance);
             }
         }
 
-        private static void PlayInternalNow(SoundGroupAsset group, Space space, Vector3 position, bool loop, float delay, float fadeDuration, System.Func<float, float> fadeEase)
+        private static bool CanPlay(SoundGroupAsset group)
         {
+            voiceCounts.TryGetValue(group, out int voiceCount);
+            timestamps.TryGetValue(group, out float timestamp);
+            return group.CanPlay(voiceCount, timestamp);
+        }
+
+        private static SoundInstance GetInstance(SoundGroupAsset group, bool loop)
+        {
+            // Started here rather than when a sound plays so instances waiting on a load also get checked
             if (coroutine == null)
             {
                 coroutine = CoroutineUtil.StartCoroutine(CheckIfAudioSourceIsDonePlaying());
             }
 
-            if (!voiceCounts.TryGetValue(group, out int voiceCount))
+            SoundInstance instance = Pool.Get<SoundInstance>();
+            instance.Group = group;
+            instance.IsLooping = loop;
+            activeInstances.Add(instance);
+            return instance;
+        }
+
+        private static void StartInstance(SoundInstance instance, Space space, Vector3 position, float delay, float fadeDuration)
+        {
+            SoundGroupAsset group = instance.Group;
+            timestamps[group] = Time.unscaledTime;
+
+            // Groups with only layers have nothing of their own to play
+            if (!group.HasSounds)
             {
-                voiceCounts[group] = 0;
+                return;
             }
 
-            if (!timestamps.TryGetValue(group, out float timestamp))
+            AudioSource source = pool.Get();
+            instance.Source = source;
+            voiceCounts.TryGetValue(group, out int voiceCount);
+            voiceCounts[group] = voiceCount + 1;
+
+            instance.Fade = instance.IsLooping ?
+                group.PlayLooped(source, (float)space, position, fadeDuration) :
+                group.Play(source, (float)space, position, delay);
+        }
+
+        private static void StopInstance(SoundInstance instance, float fadeDuration = -1f)
+        {
+            foreach (SoundHandle layer in instance.Layers)
             {
-                timestamps[group] = 0f;
+                if (layer.TryGetInstance(out SoundInstance layerInstance))
+                {
+                    StopInstance(layerInstance, fadeDuration);
+                }
             }
 
-            if (group.CanPlay(voiceCount, timestamp))
+            instance.Layers.Clear();
+
+            // Still waiting for its group to load, or has only layers, so there is nothing to fade out
+            if (instance.Source == null)
             {
-                AudioSource source = pool.Get();
-                activeSources.Add(source);
-                sourceToGroupMap[source] = group;
-                voiceCounts[group]++;
-                timestamps[group] = Time.unscaledTime;
+                ReleaseInstance(instance);
+                return;
+            }
 
-                if (loop)
-                {
-                    SoundLoopHandle loopHandle = group.PlayLooped(source, (float)space, position, fadeDuration, fadeEase);
+            CoroutineUtil.StopCoroutine(instance.Fade);
+            instance.IsStopping = true;
+            instance.Fade = instance.Group.Stop(instance.Source, fadeDuration);
 
-                    if (!groupToHandlesMap.ContainsKey(group))
-                    {
-                        groupToHandlesMap.Add(group, new List<SoundLoopHandle>());
-                    }
-
-                    groupToHandlesMap[group].Add(loopHandle);
-                }
-                else
-                {
-                    sourceToFadeCoroutineMap[source] = group.Play(source, (float)space, position, delay);
-                }
+            if (instance.Fade == null)
+            {
+                ReleaseInstance(instance);
             }
         }
 
-        private static void StopInternal(SoundGroupAsset group, float fadeDuration = 0f, System.Func<float, float> fadeEase = null)
+        private static void ReleaseInstance(SoundInstance instance)
         {
-            if (groupToHandlesMap.TryGetValue(group, out List<SoundLoopHandle> handles) && handles.Count > 0)
+            // Already released
+            if (instance.Group == null)
             {
-                int last = handles.Count - 1;
-                group.StopLooped(handles[last], fadeDuration, fadeEase);
-                handles.RemoveAt(last);
-            }
-        }
-
-        private static void StopAllInternal(SoundGroupAsset group)
-        {
-            while (groupToHandlesMap.TryGetValue(group, out List<SoundLoopHandle> handles) && handles.Count > 0)
-            {
-                StopInternal(group);
+                return;
             }
 
-            for (int i = activeSources.Count - 1; i >= 0; i--)
+            if (instance.LoadedHandler != null)
             {
-                AudioSource source = activeSources[i];
-
-                if (sourceToGroupMap.TryGetValue(source, out SoundGroupAsset sourceGroup) && sourceGroup == group)
-                {
-                    if (sourceToFadeCoroutineMap.TryGetValue(source, out Coroutine fadeInCoroutine))
-                    {
-                        CoroutineUtil.StopCoroutine(fadeInCoroutine);
-                    }
-
-                    Coroutine fadeOutCoroutine = group.Stop(source);
-                    sourceToFadeCoroutineMap[source] = fadeOutCoroutine;
-
-                    if (fadeOutCoroutine == null)
-                    {
-                        activeSources.RemoveAt(i);
-                        ReleaseSource(source);
-                    }
-                }
+                instance.Group.Loaded -= instance.LoadedHandler;
             }
+
+            CoroutineUtil.StopCoroutine(instance.Fade);
+
+            if (instance.Source != null)
+            {
+                voiceCounts[instance.Group]--;
+                pool.Release(instance.Source);
+            }
+
+            activeInstances.Remove(instance);
+            instance.Reset();
+            Pool.Release(instance);
         }
     }
 }

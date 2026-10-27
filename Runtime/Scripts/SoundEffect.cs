@@ -13,6 +13,8 @@ namespace HHG.Audio.Runtime
         [SerializeField, ShowIf(nameof(space), Sound.Space._3D)] private Target target;
         [SerializeField, ShowIf(nameof(target), Target.Other)] private Transform targetTransform;
 
+        private SoundHandle handle;
+
         private enum Target
         {
             Self,
@@ -29,19 +31,19 @@ namespace HHG.Audio.Runtime
             switch (space)
             {
                 case Sound.Space._2D:
-                    Sound.PlayDelayed(soundGroup, delay);
+                    handle = Sound.PlayDelayed(soundGroup, delay);
                     break;
 
                 default:
                     Vector3 position = target == Target.Self ? transform.position : targetTransform.position;
-                    Sound.PlayDelayed(soundGroup, delay, position);
+                    handle = Sound.PlayDelayed(soundGroup, delay, position);
                     break;
             }
         }
 
         public void Stop()
         {
-            Sound.Stop(soundGroup);
+            handle.Stop();
         }
     }
 }

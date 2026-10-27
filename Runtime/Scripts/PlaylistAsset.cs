@@ -33,6 +33,7 @@ namespace HHG.Audio.Runtime
 
         private List<AudioClip> tracks = new List<AudioClip>();
         private List<AsyncOperationHandle<AudioClip>> handles = new List<AsyncOperationHandle<AudioClip>>();
+        private List<AsyncOperationHandle<AudioClip>> previousHandles = new List<AsyncOperationHandle<AudioClip>>();
 
         private void OnEnable()
         {
@@ -56,17 +57,37 @@ namespace HHG.Audio.Runtime
             // Only clear tracks if using a tracks provider
             if (tracksProvider != null)
             {
-                foreach (AsyncOperationHandle<AudioClip> handle in handles)
+                // Playlists keep playing the previous tracks across scenes, so release them only once the next tracks load
+                if (handles.Count > 0)
                 {
-                    if (handle.IsValid())
-                    {
-                        Addressables.Release(handle);
-                    }
+                    ReleaseHandles(previousHandles);
+                    previousHandles.AddRange(handles);
+                    handles.Clear();
                 }
 
-                handles.Clear();
                 tracks.Clear();
             }
+        }
+
+        // Unloads the tracks once nothing plays this playlist anymore
+        public void Release()
+        {
+            ReleaseHandles(handles);
+            ReleaseHandles(previousHandles);
+            tracks.Clear();
+        }
+
+        private static void ReleaseHandles(List<AsyncOperationHandle<AudioClip>> handlesToRelease)
+        {
+            foreach (AsyncOperationHandle<AudioClip> handle in handlesToRelease)
+            {
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+            }
+
+            handlesToRelease.Clear();
         }
 
         public void Load()
@@ -90,6 +111,12 @@ namespace HHG.Audio.Runtime
 
                     handle.Completed += (operation) =>
                     {
+                        // Ignore loads that were reset or released before they finished
+                        if (!handles.Contains(operation))
+                        {
+                            return;
+                        }
+
                         if (operation.Status == AsyncOperationStatus.Succeeded)
                         {
                             AudioClip track = operation.Result;
@@ -100,6 +127,7 @@ namespace HHG.Audio.Runtime
 
                             if (IsLoaded)
                             {
+                                ReleaseHandles(previousHandles);
                                 Loaded?.Invoke(this);
                             }
                         }

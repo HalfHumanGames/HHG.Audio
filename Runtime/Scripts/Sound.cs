@@ -18,6 +18,7 @@ namespace HHG.Audio.Runtime
         public const float SilentDb = -80f;
 
         public bool IsLoaded => clip != null;
+        public bool IsLoading => handle.IsValid() && clip == null;
         public bool HasClipReference => _clip != null && _clip.RuntimeKeyIsValid();
         public AudioClip Clip => clip;
         public float VolumeOffsetDb => volumeOffsetDb.NextRand;
@@ -69,6 +70,12 @@ namespace HHG.Audio.Runtime
 
                 handle.Completed += (operation) =>
                 {
+                    // A forced reload releases the previous load, which must not touch the new one
+                    if (!handle.Equals(operation))
+                    {
+                        return;
+                    }
+
                     if (operation.Status == AsyncOperationStatus.Succeeded)
                     {
                         clip = operation.Result;
@@ -77,6 +84,10 @@ namespace HHG.Audio.Runtime
                     else if (operation.Status == AsyncOperationStatus.Failed)
                     {
                         Debug.LogError($"{operation.OperationException.Message}\n{operation.OperationException.StackTrace}");
+
+                        // Clear the failed handle so the next load retries
+                        handle = default;
+                        Addressables.Release(operation);
                     }
                 };
             }
