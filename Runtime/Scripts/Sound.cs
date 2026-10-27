@@ -3,21 +3,22 @@ using System;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.Serialization;
 
 namespace HHG.Audio.Runtime
 {
-    /* Additonal features:
+    /* Additonal features to implement later on:
         - https://www.dtdevtools.com/docs/masteraudio/Occlusion.htm
         - https://www.dtdevtools.com/docs/masteraudio/AudioDucking.htm
         - https://www.dtdevtools.com/docs/masteraudio/FilterFX.htm
     */
+
     [Serializable]
     public partial class Sound
     {
         public const float SilentDb = -80f;
 
         public bool IsLoaded => clip != null;
+        public bool HasClipReference => _clip != null && _clip.RuntimeKeyIsValid();
         public AudioClip Clip => clip;
         public float VolumeOffsetDb => volumeOffsetDb.NextRand;
         public float PitchOffsetSemitones => pitchOffsetSemitones.NextRand;
@@ -36,6 +37,7 @@ namespace HHG.Audio.Runtime
         // unless we add this NonSerialized attribute
         // Without it, sounds plays stale audio slips
         [NonSerialized] private AudioClip clip;
+        [NonSerialized] private AsyncOperationHandle<AudioClip> handle;
 
         // dB to linear gain (0 dB = 1). SilentDb or lower is treated as silent.
         public static float DecibelsToLinear(float db)
@@ -56,21 +58,25 @@ namespace HHG.Audio.Runtime
 
         public void Load(bool force = false)
         {
-            if (force || clip == null)
+            if (force || !handle.IsValid())
             {
-                var handle = Addressables.LoadAssetAsync<AudioClip>(_clip);
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+
+                handle = Addressables.LoadAssetAsync<AudioClip>(_clip);
 
                 handle.Completed += (operation) =>
                 {
-                    if (handle.Status == AsyncOperationStatus.Succeeded)
+                    if (operation.Status == AsyncOperationStatus.Succeeded)
                     {
-                        clip = handle.Result;
-
+                        clip = operation.Result;
                         Loaded?.Invoke(this);
                     }
-                    else if (handle.Status == AsyncOperationStatus.Failed)
+                    else if (operation.Status == AsyncOperationStatus.Failed)
                     {
-                        Debug.LogError($"{handle.OperationException.Message}\n{handle.OperationException.StackTrace}");
+                        Debug.LogError($"{operation.OperationException.Message}\n{operation.OperationException.StackTrace}");
                     }
                 };
             }

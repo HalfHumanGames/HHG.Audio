@@ -32,6 +32,7 @@ namespace HHG.Audio.Runtime
         [SerializeReference, SubclassSelector] private ITracksProvider tracksProvider;
 
         private List<AudioClip> tracks = new List<AudioClip>();
+        private List<AsyncOperationHandle<AudioClip>> handles = new List<AsyncOperationHandle<AudioClip>>();
 
         private void OnEnable()
         {
@@ -55,15 +56,24 @@ namespace HHG.Audio.Runtime
             // Only clear tracks if using a tracks provider
             if (tracksProvider != null)
             {
+                foreach (AsyncOperationHandle<AudioClip> handle in handles)
+                {
+                    if (handle.IsValid())
+                    {
+                        Addressables.Release(handle);
+                    }
+                }
+
+                handles.Clear();
                 tracks.Clear();
             }
         }
 
         public void Load()
         {
-            if (!IsLoaded)
+            // Handles exist once a load starts, so loading twice doesn't duplicate them
+            if (handles.Count == 0)
             {
-
                 if (tracksProvider != null)
                 {
                     tracksProvider.PopulateTracks(_tracks, this);
@@ -76,12 +86,13 @@ namespace HHG.Audio.Runtime
                     int index = i; // Can't use i since it changes
                     AssetReferenceT<AudioClip> reference = _tracks[i];
                     AsyncOperationHandle<AudioClip> handle = Addressables.LoadAssetAsync<AudioClip>(reference);
+                    handles.Add(handle);
 
                     handle.Completed += (operation) =>
                     {
-                        if (handle.Status == AsyncOperationStatus.Succeeded)
+                        if (operation.Status == AsyncOperationStatus.Succeeded)
                         {
-                            AudioClip track = handle.Result;
+                            AudioClip track = operation.Result;
 
                             // Add by index to make sure 
                             // tracks get added in order
@@ -92,9 +103,9 @@ namespace HHG.Audio.Runtime
                                 Loaded?.Invoke(this);
                             }
                         }
-                        else if (handle.Status == AsyncOperationStatus.Failed)
+                        else if (operation.Status == AsyncOperationStatus.Failed)
                         {
-                            Debug.LogError($"{handle.OperationException.Message}\n{handle.OperationException.StackTrace}", this);
+                            Debug.LogError($"{operation.OperationException.Message}\n{operation.OperationException.StackTrace}", this);
                         }
                     };
                 }

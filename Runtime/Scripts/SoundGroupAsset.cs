@@ -224,9 +224,18 @@ namespace HHG.Audio.Runtime
 
         private void OnValidate()
         {
-            foreach(Sound sound in sounds)
+            // Only reload clips edited during play mode, since loading in edit mode leaks Addressables handles
+            if (!Application.isPlaying)
             {
-                sound.Load(true);
+                return;
+            }
+
+            foreach (Sound sound in sounds)
+            {
+                if (sound.HasClipReference)
+                {
+                    sound.Load(true);
+                }
             }
         }
     }
