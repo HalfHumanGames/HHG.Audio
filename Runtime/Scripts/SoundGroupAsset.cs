@@ -42,8 +42,8 @@ namespace HHG.Audio.Runtime
         [SerializeField] private float playChance = 1f;
         [SerializeField] private int priority;
         [SerializeField] private AudioMixerGroup mixerGroup;
-        [SerializeField] private float volume = 1f;
-        [SerializeField] private float pitch = 1f;
+        [SerializeField, Range(Sound.SilentDb, 0f)] private float volumeDb = 0f;
+        [SerializeField] private float pitchSemitones = 0f;
         [SerializeField] private float cooldown = .2f;
         [SerializeField] private int maxVoices = 5;
         [SerializeField] private float fadeInDuration = 0f;
@@ -200,7 +200,7 @@ namespace HHG.Audio.Runtime
             source.transform.position = position;
             source.priority = priority;
             source.outputAudioMixerGroup = mixerGroup;
-            source.pitch = pitch * sound.Pitch;
+            source.pitch = Sound.SemitonesToPitch(pitchSemitones + sound.PitchOffsetSemitones);
             source.spatialBlend = spacialBlend;
             source.minDistance = distance.Min;
             source.maxDistance = distance.Max;
@@ -208,8 +208,8 @@ namespace HHG.Audio.Runtime
             source.playOnAwake = false;
             if (source.rolloffMode == AudioRolloffMode.Custom) source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, customRolloff);
             ApplyFilters(source);
-            finalVolume = volume * sound.Volume;
-            delay = sound.Delay;
+            finalVolume = Mathf.Clamp01(Sound.DecibelsToLinear(volumeDb + sound.VolumeOffsetDb));
+            delay = sound.DelayOffsetSeconds;
         }
 
         private void ApplyFilters(AudioSource source)
